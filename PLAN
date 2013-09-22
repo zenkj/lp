@@ -90,6 +90,11 @@
             print "n = $n, m = $m"
         end
 
+        for n in 1:10
+            m in 2*n       # or m = 2*n???
+        do
+            print "n = $n, m = $m"
+        end
 
 
         for a,b,c in iterator(); d = 0 do
