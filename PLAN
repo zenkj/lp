@@ -3,11 +3,13 @@
     Language for People(not for compiler or interpreter)
     Language for Parallel
     Literate Programming
+    Lightweight Process
     Lao Po
     Lai Pi
     Lua-inspired Programming language
  1. 特性
     可抢占式调度的轻量级线程（来自erlang）
+        lp puts "new process with id = $$" end
     数据不可变（来自FP）
         减少大量锁，适合并发编程
         对于map这类数据结构，每次修改都会造成大量重复数据（测试性能）
