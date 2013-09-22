@@ -1,0 +1,193 @@
+ 0. 语言名字
+    lp:
+    Language for People(not for compiler or interpreter)
+    Language for Parallel
+    Literate Programming
+    Lao Po
+    Lai Pi
+    Lua-inspired Programming language
+ 1. 特性
+    可抢占式调度的轻量级线程（来自erlang）
+    数据不可变（来自FP）
+        减少大量锁，适合并发编程
+        对于map这类数据结构，每次修改都会造成大量重复数据（测试性能）
+    词法级命名作用域（来自C）
+    同一作用域中，名字可以重绑定（来自lua）
+        能够使for循环向其所在作用域返回数据（同名替换）
+        减少了创建大量名字（X，X1，X2）的场景
+        但会出现同一个名字在相同作用域的不同地方所指代的数据不一致的问题
+    支持类似block的结构，减少括号内的函数定义（来自ruby）
+    面向人组织程序，而非面向编译器／解释器组织程序（来自CWEB）
+        写程序好比写文章
+        不再有设计／开发／测试／资料之分（少了多少扯皮，让现在经常找我麻烦的人没工作，多哈皮的事）
+    for/while循环可以传入参数，可以有返回值
+        实际上就是将erlang中必须通过定义一个新的递归函数来解决的问题，
+        使用for/while循环直接在当前函数中写出来。
+        erlang的那种做法极不合理：
+            为什么一个简单的循环非要定义一个和当前函数同等地位的函数？
+            为什么非要占用一个名字？
+        for n=1:10; a=0; b=0 do
+            plah plah plah
+            a += n
+            b += a
+        end
+
+        for n = 1:10
+            a = 0
+            b = 0
+        do
+            plah plah plah
+            a += n
+            b += a
+        end
+
+        for
+            n in 1,10,13,16,18
+            a = 0
+            b = 0
+        do
+            plah plah plah
+            a += n
+            b += a
+        end
+
+        for
+            n,i in 1:10
+            a = 0
+            b = 0
+        do
+            plah plah plah
+            a += n
+            b += a + i
+        end
+
+        for
+            n in 1:10:2
+            n < 8
+            a = 0
+            b = 0
+        do
+            plah plah plah
+            a += n
+            b += a
+        end
+
+        for n in 1:10
+            m in n:10
+        do
+            print "n = $n, m = $m"
+        end
+
+
+
+        for a,b,c in iterator(); d = 0 do
+            plah plah plah
+            if d > 25 then
+                break
+            end
+            if d > 20 then
+                continue
+            end
+            d + a+b+c
+        end
+
+        while
+            line =  readline()
+            a    =  0
+            line != eof
+        do
+            plah plah plah
+            a += length(line)
+        end
+
+        print a
+
+        do
+            print 'this is a local do scope'
+        end
+
+        if
+            a = 0
+            b = 0
+            i > 24
+        then
+            plah plah plah
+            a += i
+            b += a
+        end
+
+        print a
+
+        lp
+            print 'this is in a sub light process'
+        end
+
+    模式匹配
+        case receive(10) of
+        timeout:
+            print 'timeout'
+        1|2|3,4:
+            print '1 or 2 or 3 and 4'
+        _:
+            print 'catch all'
+        end
+
+        case receive(10) of
+            timeout:
+                print 'timeout'
+            1|2|3,4:
+                print '1 or 2 or 3 and 4'
+            _:
+                print 'catch all'
+        end
+
+        case receive(10) of
+            timeout: print 'timeout'
+            1|2|3,4: print '1 or 2 or 3 and 4'
+            _:       print 'catch all'
+        end
+
+        case a of 24 | 36: print '24 or 36' end
+        
+        if a == 24 || a == 36 then print '24 or 36' end
+        
+        for result in receive(10) do
+            case result of
+                .timeout: break
+                1:        plah plah
+                _,23,_:   tuple with 3 elements plah plah
+            end
+            if result == 24 then break end
+        end
+
+    原子
+        .abc
+    使用Closure集合代替对象
+        对象实例不再是一堆数据的组合（含有一个指向方法列表的指针）
+        而是一堆Closure的集合，这堆Closure共享相同的upvalue，这些隐藏
+        的upvalue才是对象实例的数据，但任何人都无法看到
+        upvalue和函数参数相比，耗费更多还是更少？比如与使用this指针的情况相比
+    tuple
+        tuple在表达1～3个数据时非常方便，免去了起名字的烦恼，同时通过
+        下标的快速访问方式，性能极高
+        但多于三个数据放一起，tuple使用下标定位的方式对人来说很不方便，人对于
+        多于三个的数据，更喜欢通过名字去叫，而非老四／老五／老六这样去叫。
+
+        函数参数实际上就是一种tuple，通过参数位置将形参和实参对应起来。
+        访问非常快，但同样，多于三个参数后，调用函数就很难记怎么调用。
+
+        所以，tuple只能有最多三个数据；多于三个，就不许使用命名访问。
+
+ 2. 语法定义
+ 3. 虚拟机指令定义
+ 4. 词法解析器
+ 5. 语法解析器
+ 6. 虚拟机指令生成器
+ 7. 虚拟机执行器
+ 8. IDE
+ 9. io集成
+    network
+    terminal
+    disk
+10. webserver开发
+
