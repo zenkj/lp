@@ -17,9 +17,11 @@
         对于map这类数据结构，每次修改都会造成大量重复数据（测试性能）
     词法级命名作用域（来自C）
     同一作用域中，名字可以重绑定（来自lua）
-        能够使for循环向其所在作用域返回数据（同名替换）
         减少了创建大量名字（X，X1，X2）的场景
         但会出现同一个名字在相同作用域的不同地方所指代的数据不一致的问题
+        note: for/while循环中向其所在作用域返回数据的同名替换，不属于
+        统一作用域的名字重绑定，因为他们是在不同作用域。
+        if算不算子作用域？？？？
     支持类似block的结构，减少括号内的函数定义（来自ruby）
     面向人组织程序，而非面向编译器／解释器组织程序（来自CWEB）
         写程序好比写文章
@@ -30,13 +32,13 @@
         erlang的那种做法极不合理：
             为什么一个简单的循环非要定义一个和当前函数同等地位的函数？
             为什么非要占用一个名字？
-        for n=1:10; a=0; b=0 do
+        for n in 1:10; a=0; b=0 do
             plah plah plah
             a += n
             b += a
         end
 
-        for n = 1:10
+        for n in 1:10
             a = 0
             b = 0
         do
@@ -67,7 +69,9 @@
 
         for
             n in 1:10:2
-            n < 8
+            m in 1:n
+            n != 5     # for中的逻辑判断是filter，false时进入下一轮循环
+            m + n < 11
             a = 0
             b = 0
         do
@@ -96,9 +100,9 @@
         end
 
         while
-            line =  readline()
+            line in  readline()
             a    =  0
-            line != eof
+            line != eof ＃while中的逻辑判断是guard，false时跳出循环
         do
             plah plah plah
             a += length(line)
@@ -171,6 +175,10 @@
         而是一堆Closure的集合，这堆Closure共享相同的upvalue，这些隐藏
         的upvalue才是对象实例的数据，但任何人都无法看到
         upvalue和函数参数相比，耗费更多还是更少？比如与使用this指针的情况相比
+        {.a = foo, .b = bar}
+        or
+        export fun foo() ... end
+        export fun bar() ... end
     tuple
         tuple在表达1～3个数据时非常方便，免去了起名字的烦恼，同时通过
         下标的快速访问方式，性能极高
@@ -181,6 +189,9 @@
         访问非常快，但同样，多于三个参数后，调用函数就很难记怎么调用。
 
         所以，tuple只能有最多三个数据；多于三个，就不许使用命名访问。
+
+    列表解析
+        [a+b for a in 1:10; b in a:12; a+b != 6] # generator or filter
 
  2. 语法定义
  3. 虚拟机指令定义
