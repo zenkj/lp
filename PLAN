@@ -233,6 +233,10 @@
         #{ 多行注释开始
         #} 多行注释结束
         #  注释开始
+        #1-9, #>, #<, #=会创建一个新的section，在section内部，local名字可与其他section的名字重复
+
+    local名字
+        local名字是section内部的名字，在外部不可见
 
     try catch after finally
         try中添加类似erlang receive中的after，可以监控任意一段代码的执行时间

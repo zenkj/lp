@@ -6,12 +6,12 @@ fun foo(i)
     puts "$i: hello world from function foo in lp $$"
 end
 
-for i=1,5 do
+for i in 1..5 do
     p = lp foo(i) end
     puts "lp ${p.id} created"
 end
 
-while (line=gets()) != nil do
+while line in gets(); line != nil do
     puts line
 end
 
