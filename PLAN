@@ -222,24 +222,36 @@
         erlang、c、javascript等很大的问题是没有把主要函数（export的）和一般的辅助函数（trivial的）
         分开，整个文件没有结构，导致文件长的时候看起来很痛苦
         而小说，则分章节，有清晰入口，很清楚。
+        所以，有如下创建section，使用local名字的想法
 
     注释
         #! 首行指定解析程序
-        #1
-        #9 指定程序结构的级别
-        #> 下一级
-        #< 上一级
-        #= 当前级别的下一条目
-        #{ 多行注释开始
-        #} 多行注释结束
         #  注释开始
-        #1-9, #>, #<, #=会创建一个新的section，在section内部，local名字可与其他section的名字重复
+        #{ 多行注释开始 ---- 不支持
+        } 多行注释结束 ---- 不支持
+
+    section
+        @1
+        @9 指定程序结构的级别
+        @> 下一级
+        @< 上一级
+        @= 当前级别的下一条目
+        @1-9, @>, @<, @=会创建一个新的section，在section内部，local名字可与其他section的名字重复
+        新section后所跟第一个token如果是字符串，则为该section的说明
 
     local名字
         local名字是section内部的名字，在外部不可见
 
     try catch after finally
         try中添加类似erlang receive中的after，可以监控任意一段代码的执行时间
+
+    字符串：
+        "aaa"是可做字符串解析的字符串，可以将变量插入其中："aaa$b-aaa"，变量b会被解析出来
+        'aaa"是不做字符串解析的字符串
+        """aaa"""是做字符串解析的多行字符串
+        '''aaa'''是不做字符串解析的多行字符串
+        在section、function、variable、parameter等后面直接跟着的字符串，是该成员的说明。
+
 
 
  2. 语法定义
