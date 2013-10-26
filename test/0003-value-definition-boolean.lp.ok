@@ -1,0 +1,14 @@
+@= boolean value definition
+b0 = true
+b1 = false
+b2 = b0 && b1
+b3 = b0 || b1
+b4 = ! b0
+b5 = b0 == b1
+b5 = b0 != b1
+b5 = f0 == f1
+b5 = f0 > f1
+b5 = f0 < f1
+b5 = f0 >= f1
+b5 = f0 <= f1
+b5 = f0 != f1

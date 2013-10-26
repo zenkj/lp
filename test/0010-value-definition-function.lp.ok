@@ -1,0 +1,4 @@
+
+#= function value definition
+fun0 = fun(a int) return a + c end
+

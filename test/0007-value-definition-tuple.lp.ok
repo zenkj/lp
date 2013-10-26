@@ -1,0 +1,2 @@
+#= tuple value definition
+a,b,c = 1,2,3

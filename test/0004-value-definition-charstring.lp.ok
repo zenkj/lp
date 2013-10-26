@@ -1,0 +1,29 @@
+@= character string(unicode string) value definition
+s00 = 'abcde'
+s01 = "abcde"
+s02 = "ab$$cde"
+s03 = "s = $s00"         # variable substitution
+f0 = 1.5
+s04 = "s = ${f0 + 1.5}"  # variable substitution
+s05 = 's = $s00'         # NO variable substitution
+s06 = "a\n\r\tb"
+s07 = "a\"b'''c"
+s08 = 'a"b\'"""\n\r\tccc'
+
+s09 = "a b c \
+d e f haha"
+
+s10 = 'a b c \
+d e f haha'
+
+s11 = '''hello,
+my baby
+who're you? 
+this's a "good day", right?
+bye'''
+
+s11 = """hello,
+my baby, your age is $f0
+who're you? 
+this's a "good day", right?
+bye"""

@@ -1,12 +1,11 @@
 #ifndef __LPLEX_H__
 #define __LPLEX_H__
 
+#define TOKEN_ERROR      -2 // error
 #define TOKEN_NTOKEN     -1 // not a token
 #define TOKEN_EOS        0
 #define TOKEN_COMMENT    1 //# 
-#define TOKEN_SEGMENT    2 //#=
-#define TOKEN_DOWNSEG    3 //#>
-#define TOKEN_UPSEG      4 //#<
+#define TOKEN_SECTION    2 //#1~#9, #<, #>, #=
 #define TOKEN_IDENTIFIER 5
 #define TOKEN_INTEGER    6
 #define TOKEN_FLOAT      7
@@ -25,6 +24,7 @@
 #define TOKEN_CONTINUE   20
 #define TOKEN_RETURN     21
 
+#define TOKEN_BUFMAX     512
 typedef struct Token {
     int type;
     int beginrow;
@@ -33,7 +33,9 @@ typedef struct Token {
     int endcol;
     long i;
     double d;
-    char buf[512];
+    int  strlen; // actual string length
+    int  buflen; // actual buffer length
+    char buf[TOKEN_BUFMAX+1];
     char *bigstr;
 } Token;
 

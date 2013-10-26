@@ -1,0 +1,5 @@
+@= regex value definition
+r0 = /^.*$/
+r1 = /^\/abc\/def\/.*$/
+r2 = r'^/abc/def/.*$/' # support or not???
+r4 = /abc.*$s0\s*/

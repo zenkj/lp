@@ -1,0 +1,14 @@
+@1 integer value definition
+
+i0 = 10
+i1 = i0 + 5
+i2 = i0 - 5
+i3 = i0 * 5
+i4 = i0 / 5
+i5 = i0 % 5
+i6 = i0 ** 5
+i7 = i0 >> 5
+i8 = i0 << 5
+i9 = 0123
+ia = 0xabc
+ic = 0b1001

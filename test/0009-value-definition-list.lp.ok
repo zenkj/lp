@@ -1,0 +1,5 @@
+@= list value definition
+l0 = [1,2,3]
+l1 = [a+1 for a in l0]
+l2 = [a*2 for a in i0; a != 2]
+l3 = [a + b for a in l0; b in l2; a != b]

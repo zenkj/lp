@@ -1,0 +1,3 @@
+#= lp value definition
+lp0 = lp puts true end
+lp1 = lp0

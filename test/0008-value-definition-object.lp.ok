@@ -1,0 +1,8 @@
+#= object value(named tuple) definition
+T1 = { a = 4, b = 'hello', c boolean }
+obj0 = T1 { c=true }
+obj1 = T1{}
+obj2 = obj1{a=6}
+#obj3.b = 'world'   # error
+obj4 = {a = 4, b = 6}{}
+

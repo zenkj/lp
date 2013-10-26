@@ -1,0 +1,3 @@
+#= anonymous value definition
+a,_,c = 1,2,3
+
