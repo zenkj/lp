@@ -16,6 +16,9 @@
 // for assert
 #include <assert.h>
 
+// for strtol and strtod
+#include <errno.h>
+
 #include "lplex.h"
 
 // ---------------------- common definition ---------------------
@@ -394,6 +397,12 @@ static void refill(Source *src) {
 #define STRTYPE_DOUBLEM 4 // multi-line string quoted by """
 
 #define is_newline_char (ch) ((ch) == '\n' || (ch) == '\r')
+#define is_hex_char (ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'f') || ((ch) >= 'A' && (ch) <= 'F'))
+#define is_oct_char (ch) ((ch) >= '0' && (ch) <= '7')
+#define is_dec_char (ch) ((ch) >= '0' && (ch) <= '9')
+#define is_id_char (ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_')
+#define is_id_first_char (ch) (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_')
+
 
 static int consume_newline(Source *src) {
     int curr = next(src);
@@ -718,6 +727,102 @@ static int consume_section(Source *src, Token *dest) {
     return 0;
 }
 
+static int str2int(Token *dest, int base) {
+    if (token_strlen(dest) == 0) {
+        dest->type = TOKEN_ERROR;
+        set_token_str(dest, "malformed number");
+        return 0;
+    }
+
+}
+static int gather_hex_int(Source *src, Token *dest) {
+    int curr;
+    while (true) {
+        curr = peek(src);
+        if (is_hex_char(curr)) {
+            next(src);
+            append_char_to_token(dest, curr);
+        } else if (is_id_first_char(curr)) {
+            next(src);
+            dest->type = TOKEN_ERROR;
+            set_token_str(dest, "malformed number");
+            return 0;
+        } else {
+            break;
+        }
+    }
+
+    return str2int(dest, 16);
+}
+
+static int gather_bin_int(Source *src, Token *dest) {
+}
+
+static int gather_oct_int(Source *src, Token *dest) {
+}
+
+static int gather_dec(Source *src, Token *dest) {
+}
+
+static int consume_normal_number(Source *src, Token *dest) {
+    int curr = next(src);
+    int result;
+    assert(is_dec_char(curr) && curr != '0');
+    dest->type = TOKEN_INTEGER;
+    set_token_begin(src, dest);
+
+    append_char_to_token(dest, curr);
+    result = gather_dec(src, dest);
+    set_token_end(src, dest);
+    return result;
+}
+
+static int consume_special_number(Source *src, Token *dest) {
+    int curr = next(src);
+    int result;
+    assert(curr == '0');
+
+    dest->type = TOKEN_INTEGER;
+    set_token_begin(src, dest);
+    
+    curr = peek(src);
+    switch (curr) {
+        case 'x': case 'X': // do not support hexdecimal non-integer
+            next(src);
+            result = gather_hex_int(src, dest);
+            set_token_end(src, dest);
+            return result;
+        case 'b': case 'B': // do not support binary non-integer
+            next(src);
+            result = gather_bin_int(src, dest);
+            set_token_end(src, dest);
+            return result;
+        case '0': case '1': case '2': case '3': case '4':
+        case '5': case '6': case '7': // do not support octal non-integer
+            result = gather_oct_int(src, dest);
+            set_token_end(src, dest);
+            return result;
+        case '.':
+            // it's normal number(float)
+            append_char_to_token(dest, '0');
+            result = gather_dec(src, dest);
+            set_token_end(src, dest);
+            return result;
+        default:
+            if (is_id_first_char(curr) || curr == '8' || curr == '9')
+                next(src);
+                set_token_str(dest, "invalid number format");
+                dest->type = TOKEN_ERROR;
+                set_token_end(src, dest);
+                return 0;
+            } else {
+                dest->i = 0;
+                set_token_end(src, dest);
+                return 1;
+            }
+    }
+}
+
 //--------------- token -----------------------------
 
 // return 1: ok
@@ -739,12 +844,12 @@ static int next_token_to(Source *src, Token *dest) {
             case '@':
                 return consume_section(src, dest);
             case '"': case '\'':
-                return consume_string(sec, dest);
+                return consume_string(src, dest);
             case '0':
-                // TODO
-                break;
+                return consume_special_number(src, dest);
             case '1': case '2': case '3': case '4': case '5':
             case '6': case '7': case '8': case '9': 
+                return consume_normal_number(src, dest);
                 break;
             '\r': '\n':
                 consume_newline(src);
