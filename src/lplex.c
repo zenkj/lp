@@ -28,6 +28,38 @@
 #define PATHMAX 65535
 #define SRCMAX (10*1024*1024) 
 
+typedef struct {
+    const char *str;
+    int type;
+} Reserve;
+static Reserve reserves[] = {
+    {"and", TOKEN_AND},
+    {"break", TOKEN_BREAK},
+    {"case", TOKEN_CASE},
+    {"continue", TOKEN_CONTINUE},
+    {"do", TOKEN_DO},
+    {"else", TOKEN_ELSE},
+    {"elseif", TOKEN_ELSEIF},
+    {"end", TOKEN_END},
+    {"false", TOKEN_FALSE},
+    {"float", TOKEN_FLOAT},
+    {"for", TOKEN_FOR},
+    {"fun", TOKEN_FUN},
+    {"if", TOKEN_IF},
+    {"in", TOKEN_IN},
+    {"int", TOKEN_INTEGER},
+    {"lp", TOKEN_LP},
+    {"nil", TOKEN_NIL},
+    {"of", TOKEN_OF},
+    {"or", TOKEN_OR},
+    {"regex", TOKEN_REGEX},
+    {"return", TOKEN_RETURN},
+    {"string", TOKEN_STRING},
+    {"then", TOKEN_THEN},
+    {"true", TOKEN_TRUE},
+    {"while", TOKEN_WHILE},
+};
+
 typedef int (*Reader)(void *data, char*buf, int len);
 typedef void (*Closer)(void *data);
 
@@ -48,14 +80,14 @@ typedef struct Source {
 } Source;
 
 static void clear_token(Token *t, int freebigstr) {
-    char *bitstr = t->bigstr;
+    char *bigstr = t->bigstr;
     t->type = TOKEN_NTOKEN;
     t->beginrow = 0;
     t->begincol = 0;
     t->endrow = 0;
     t->endcol = 0;
     t->i = 0;
-    t->d = 0.0;
+    t->f = 0.0;
     t->strlen = 0;
     t->buflen = TOKEN_BUFMAX;
     t->buf[0] = 0;
@@ -73,6 +105,12 @@ static void move_token(Token *src, Token *dest) {
 
 static int token_strlen(Token *t) {
     return t->strlen;
+}
+
+static const char *token_str(Token *t) {
+    if (t->bigstr != NULL)
+        return t->bigstr;
+    return t->buf;
 }
 
 static void set_token_begin(Source *src, Token *t) {
@@ -171,10 +209,11 @@ static int append_char_to_token(Token *t, int ch) {
             t->buflen *= 2;
             t->bigstr = newptr;
         }
+        ptr = newptr;
     }
 
     ptr[t->strlen++] = (char)ch;
-    ptr[t-strlen] = (char)0;
+    ptr[t->strlen] = (char)0;
 
     return 1;
 }
@@ -208,7 +247,7 @@ void *file_source(const char *filepath) {
     }
     
     fd = open(filepath, O_RDONLY);
-    if (fp == -1) {
+    if (fd == -1) {
         free(mypath);
         printf("can't open source file %s to read\n", filepath);
         return NULL;
@@ -217,7 +256,7 @@ void *file_source(const char *filepath) {
     src = (Source *)malloc(sizeof(Source));
     if (src == NULL) {
         free(mypath);
-        fclose(fp);
+        close(fd);
         printf("no enough memory\n");
         return NULL;
     }
@@ -293,7 +332,7 @@ void *string_source(const char *str) {
     }
 
     ss = (StringSource*)malloc(sizeof(StringSource));
-    if (ss == null) {
+    if (ss == NULL) {
         free(src);
         printf("no enough memory\n");
         return NULL;
@@ -336,6 +375,19 @@ void close_source(void *data) {
 }
 
 //--------------- scan source -----------------------------
+static void refill(Source *src) {
+    int len;
+    src->ptr = 0;
+    len = src->read(src->data, src->buf, BUFLEN);
+    if (len <= 0) {
+        src->len = 0;
+        src->buf[src->len++] = EOS;
+        return;
+    } else {
+        src->len = len;
+    }
+}
+
 static int curr(Source *src) {
 //    if (src->curr == NCH) {
 //        return next(src);
@@ -369,26 +421,17 @@ static int peek(Source *src) {
     return src->buf[src->ptr];
 }
 
-static void refill(Source *src) {
-    int len;
-    src->ptr = 0;
-    len = src->read(src->data, src->buf, BUFLEN);
-    if (len <= 0) {
-        src->len = 0;
-        src->buf[src->len++] = EOS;
-        return;
-    } else {
-        src->len = len;
-    }
-}
-
 
 //--------------- consume various tokens  -----------
 // all these verious consume_xxx functions will consume
 // corresponding items, set col/row, move to the end of
 // the item(not the next char of the item).
-// at the entry of these consume_xxx function, the current
-// character is the end of the last item.
+//
+// Common Interface Specification:
+// 1. at the entry of these consume_xxx functions, the current
+//    character is the end of the last item.
+// 2. at the exit of these functions, the current character is
+//    the end of the current item.
 
 #define STRTYPE_TOEOL   0 // string till end of line
 #define STRTYPE_SINGLE  1 // single-line string quoted by '
@@ -396,21 +439,29 @@ static void refill(Source *src) {
 #define STRTYPE_SINGLEM 3 // multi-line string quoted by '''
 #define STRTYPE_DOUBLEM 4 // multi-line string quoted by """
 
-#define is_newline_char (ch) ((ch) == '\n' || (ch) == '\r')
-#define is_hex_char (ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'f') || ((ch) >= 'A' && (ch) <= 'F'))
-#define is_oct_char (ch) ((ch) >= '0' && (ch) <= '7')
-#define is_dec_char (ch) ((ch) >= '0' && (ch) <= '9')
-#define is_id_char (ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_')
-#define is_id_first_char (ch) (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_')
+#define is_newline_char(ch) ((ch) == '\n' || (ch) == '\r')
+#define is_hex_char(ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'f') || ((ch) >= 'A' && (ch) <= 'F'))
+#define is_oct_char(ch) ((ch) >= '0' && (ch) <= '7')
+#define is_dec_char(ch) ((ch) >= '0' && (ch) <= '9')
+#define is_id_char(ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_')
+#define is_id_first_char(ch) (((ch) >= 'a' && (ch) <= 'z') || ((ch) >= 'A' && (ch) <= 'Z') || (ch) == '_')
 
+
+static int error_token(Token *t, const char *msg) {
+    t->type = TOKEN_ERROR;
+    set_token_str(t, msg);
+    return 0;
+}
 
 static int consume_newline(Source *src) {
     int curr = next(src);
-    int next = peek(src);
+    int n;
     assert(is_newline_char(curr));
 
-    if (is_newline_char(next)) {
-        if (curr != next) {
+    n = peek(src);
+
+    if (is_newline_char(n)) {
+        if (curr != n) {
             next(src);
         }
     }
@@ -426,7 +477,7 @@ static int gather_str(Source *src, Token *dest, int type) {
     int curr;
     switch (type) {
         case STRTYPE_TOEOL:
-            while (true) {
+            while (1) {
                 curr = peek(src);
                 switch (curr) {
                     case EOS:
@@ -452,13 +503,11 @@ static int gather_str(Source *src, Token *dest, int type) {
             break;
 
         case STRTYPE_SINGLE:
-            while (true) {
+            while (1) {
                 curr = peek(src);
                 switch (curr) {
                     case EOS: case '\n': case '\r':
-                        set_token_str(dest, "no close \"'\"");
-                        dest->type = TOKEN_ERROR;
-                        return 0;
+                        return error_token(dest, "no close \"'\"");
                     case '\'':
                         next(src);
                         return 1;
@@ -468,11 +517,12 @@ static int gather_str(Source *src, Token *dest, int type) {
                         if (curr == '\'') {
                             next(src);
                         } else if (is_newline_char(curr)) {
-                            consume_newline(curr);
-                            next = '\n';
+                            consume_newline(src);
+                            curr = '\n';
                         } else {
                             curr = '\\';
                         }
+                        break;
                     default:
                         next(src);
                         break;
@@ -481,13 +531,11 @@ static int gather_str(Source *src, Token *dest, int type) {
             }
             break;
         case STRTYPE_DOUBLE:
-            while (true) {
+            while (1) {
                 curr = peek(src);
                 switch (curr) {
                     case EOS: case '\n': case '\r':
-                        set_token_str(dest, "no close '\"'");
-                        dest->type = TOKEN_ERROR;
-                        return 0;
+                        return error_token(dest, "no close '\"'");
                     case '"':
                         next(src);
                         return 1;
@@ -495,31 +543,15 @@ static int gather_str(Source *src, Token *dest, int type) {
                         next(src);
                         curr = peek(src);
                         switch (curr) {
-                            case EOS:
-                                curr = '\\';
-                                break;
-                            case '"':
-                                next(src);
-                                break;
-                            case 'n':
-                                curr = '\n';
-                                next(src);
-                                break;
-                            case 'r':
-                                curr = '\r';
-                                next(src);
-                                break;
-                            case '\\':
-                                next(src);
-                                break;
-                            case 't':
-                                curr = '\t';
-                                next(src);
-                                break;
+                            case EOS: curr = '\\'; break;
+                            case 'n': curr = '\n'; next(src); break;
+                            case 'r': curr = '\r'; next(src); break;
+                            case 't': curr = '\t'; next(src); break;
                             case '\n': case '\r':
-                                consume_newline(curr);
+                                consume_newline(src);
                                 curr = '\n';
-                            default:
+                                break;
+                            default: // \" and \\ is the same as normal chars
                                 next(src);
                                 break;
                         }
@@ -532,13 +564,11 @@ static int gather_str(Source *src, Token *dest, int type) {
             }
             break;
         case STRTYPE_SINGLEM:
-            while (true) {
+            while (1) {
                 curr = peek(src);
                 switch (curr) {
                     case EOS:
-                        set_token_str(dest, "no close \"'''\"");
-                        dest->type = TOKEN_ERROR;
-                        return 0;
+                        return error_token(dest, "no close \"'''\"");
                     case '\'':
                         next(src);
                         curr = peek(src);
@@ -554,6 +584,10 @@ static int gather_str(Source *src, Token *dest, int type) {
                             }
                         } else curr = '\'';
                         break;
+                    case '\r': case '\n':
+                        consume_newline(src);
+                        curr = '\n';
+                        break;
                     default:
                         next(src);
                         break;
@@ -562,13 +596,11 @@ static int gather_str(Source *src, Token *dest, int type) {
             }
             break;
         case STRTYPE_DOUBLEM:
-            while (true) {
+            while (1) {
                 curr = peek(src);
                 switch (curr) {
                     case EOS:
-                        set_token_str(dest, "no close '\"\"\"'");
-                        dest->type = TOKEN_ERROR;
-                        return 0;
+                        return error_token(dest, "no close '\"\"\"'");
                     case '"':
                         next(src);
                         curr = peek(src);
@@ -583,6 +615,10 @@ static int gather_str(Source *src, Token *dest, int type) {
                                 curr = '"';
                             }
                         } else curr = '"';
+                        break;
+                    case '\r': case '\n':
+                        consume_newline(src);
+                        curr = '\n';
                         break;
                     default:
                         next(src);
@@ -601,24 +637,22 @@ static int gather_str(Source *src, Token *dest, int type) {
 
 static int consume_string(Source *src, Token *dest) {
     int curr = next(src);
-    int next;
+    int n;
     int result;
 
     dest->type = TOKEN_STRING;
     set_token_begin(src, dest);
     switch (curr) {
         case '\'':
-            next = peek(src);
-            switch (next) {
+            n = peek(src);
+            switch (n) {
                 case EOS: case '\n': case '\r':
-                    set_token_str(dest, "no close \"'\"");
-                    dest->type = TOKEN_ERROR;
                     set_token_end(src, dest);
-                    return 0;
+                    return error_token(dest, "no close \"'\"");
                 case '\'':
                     curr = next(src);
-                    next = peek(src);
-                    if (next == '\'') {
+                    n = peek(src);
+                    if (n == '\'') {
                         next(src);
                         result = gather_str(src, dest, STRTYPE_SINGLEM);
                         set_token_end(src, dest);
@@ -636,17 +670,15 @@ static int consume_string(Source *src, Token *dest) {
             }
             break;
         case '"':
-            next = peek(src);
-            switch (next) {
+            n = peek(src);
+            switch (n) {
                 case EOS: case '\n': case '\r':
-                    set_token_str(dest, "no close '\"'");
-                    dest->type = TOKEN_ERROR;
                     set_token_end(src, dest);
-                    return 0;
+                    return error_token(dest, "no close '\"'");
                 case '"':
                     curr = next(src);
-                    next = peek(src);
-                    if (next == '"') {
+                    n = peek(src);
+                    if (n == '"') {
                         next(src);
                         result = gather_str(src, dest, STRTYPE_DOUBLEM);
                         set_token_end(src, dest);
@@ -675,7 +707,7 @@ static int consume_comment(Source *src, Token *dest) {
     int curr = next(src);
     assert(curr == '#');
 
-    while (true) {
+    while (1) {
         curr = peek(src);
         switch (curr) {
             case EOS:
@@ -718,35 +750,61 @@ static int consume_section(Source *src, Token *dest) {
             return result;
         default:
             next(src);
-            dest->type = TOKEN_ERROR;
-            set_token_str(dest, "invalid section specification");
             set_token_end(src, dest);
-            return 0;
+            return error_token(dest, "invalid section specification");
     }
 
     return 0;
 }
 
 static int str2int(Token *dest, int base) {
+    long l;
+    const char *beginptr = token_str(dest);
+    char *endptr;
     if (token_strlen(dest) == 0) {
         dest->type = TOKEN_ERROR;
         set_token_str(dest, "malformed number");
         return 0;
     }
-    // TODO
+    errno = 0;
+    l = strtol(beginptr, &endptr, base);
+
+    if ((errno != 0) || endptr == beginptr || *endptr != '\0') {
+        return error_token(dest, "invalid number format");
+    }
+
+    dest->i = l;
+    return 1;
 }
+
+static int str2float(Token *dest) {
+    double l;
+    const char *beginptr = token_str(dest);
+    char *endptr;
+    if (token_strlen(dest) == 0) {
+        return error_token(dest, "malformed number");
+    }
+    errno = 0;
+    l = strtod(beginptr, &endptr);
+
+    if ((errno != 0) || endptr == beginptr || *endptr != '\0') {
+        return error_token(dest, "invalid number format");
+    }
+
+    dest->f = l;
+    return 1;
+}
+
 static int gather_hex_int(Source *src, Token *dest) {
     int curr;
-    while (true) {
+    while (1) {
         curr = peek(src);
         if (is_hex_char(curr)) {
             next(src);
             append_char_to_token(dest, curr);
-        } else if (is_id_first_char(curr)) {
+        } else if (is_id_char(curr)) {
             next(src);
-            dest->type = TOKEN_ERROR;
-            set_token_str(dest, "malformed number");
-            return 0;
+            return error_token(dest, "malformed number");
         } else {
             break;
         }
@@ -756,12 +814,94 @@ static int gather_hex_int(Source *src, Token *dest) {
 }
 
 static int gather_bin_int(Source *src, Token *dest) {
+    int curr;
+    while (1) {
+        curr = peek(src);
+        if (curr == '0' || curr == '1') {
+            next(src);
+            append_char_to_token(dest, curr);
+        } else if (is_id_char(curr)) {
+            next(src);
+            return error_token(dest, "malformed number");
+        } else {
+            break;
+        }
+    }
+
+    return str2int(dest, 2);
 }
 
 static int gather_oct_int(Source *src, Token *dest) {
+    int curr;
+    while (1) {
+        curr = peek(src);
+        if (is_oct_char(curr)) {
+            next(src);
+            append_char_to_token(dest, curr);
+        } else if (is_id_char(curr)) {
+            next(src);
+            return error_token(dest, "malformed number");
+        } else {
+            break;
+        }
+    }
+
+    return str2int(dest, 8);
 }
 
 static int gather_dec(Source *src, Token *dest) {
+    int hasptr = 0; // has xiaoshudian
+    int hasexp = 0; // has exponent
+    int curr;
+    
+    while (1) {
+        curr = peek(src);
+        if (is_dec_char(curr)) {
+            next(src);
+            append_char_to_token(dest, curr);
+        } else if (curr == '.') {
+            next(src);
+            if (hasptr || hasexp) {
+                // cannot has more than one pointer
+                // cannot has pointer in exponent
+                return error_token(dest, "malformed number");
+            } else {
+                hasptr = 1;
+            }
+            append_char_to_token(dest, curr);
+        } else if (curr == 'e' || curr == 'E') {
+            next(src);
+            if (hasexp) {
+                // cannot have more than one exponent
+                return error_token(dest, "malformed number");
+            }
+            hasexp = 1;
+            append_char_to_token(dest, curr);
+
+            curr = peek(src);
+            if (curr == '+' || curr == '-' || is_dec_char(curr)) {
+                next(src);
+                append_char_to_token(dest, curr);
+            } else {
+                return error_token(dest, "malformed number");
+            }
+        } else if (is_id_char(curr)) {
+            next(src);
+            return error_token(dest, "malformed number");
+        } else {
+            break;
+        }
+    }
+
+    if (hasptr || hasexp) {
+        //float
+        dest->type = TOKEN_FLOAT;
+        return str2float(dest);
+    } else {
+        // integer
+        dest->type = TOKEN_INTEGER;
+        return str2int(dest, 10);
+    }
 }
 
 static int consume_normal_number(Source *src, Token *dest) {
@@ -809,7 +949,7 @@ static int consume_special_number(Source *src, Token *dest) {
             set_token_end(src, dest);
             return result;
         default:
-            if (is_id_first_char(curr) || curr == '8' || curr == '9')
+            if (is_id_first_char(curr) || curr == '8' || curr == '9') {
                 next(src);
                 set_token_str(dest, "invalid number format");
                 dest->type = TOKEN_ERROR;
@@ -823,6 +963,67 @@ static int consume_special_number(Source *src, Token *dest) {
     }
 }
 
+static int check_reserve(Token *t) {
+    int begin = 0;
+    int end = sizeof(reserves) / sizeof(reserves[0]) - 1;
+    int m;
+    const char *str = token_str(t);
+    int res;
+
+    while (begin <= end) {
+        m = (begin + end) / 2;
+        res = strcmp(reserves[m].str, str);
+        if (res == 0) {
+            t->type = reserves[m].type;
+            return 1;
+        } else if (res > 0) {
+            end = m - 1;
+        } else {
+            begin = m + 1;
+        }
+    }
+    return 1;
+}
+
+static int consume_id(Source *src, Token *dest) {
+    int curr = next(src);
+    int result;
+
+    assert(is_id_first_char(curr));
+
+    set_token_begin(src, dest);
+    dest->type = TOKEN_IDENTIFIER;
+    append_char_to_token(dest, curr);
+
+    while (1) {
+        curr = peek(src);
+        if (is_id_char(curr)) {
+            next(src);
+            append_char_to_token(dest, curr);
+        } else {
+            break;
+        }
+    }
+    set_token_end(src, dest);
+
+    return check_reserve(dest);
+}
+
+static int consume_default(Source *src, Token *dest) {
+    int curr = peek(src);
+
+    if (is_id_first_char(curr)) {
+        return consume_id(src, dest);
+    } else {
+        next(src);
+        set_token_begin(src, dest);
+        set_token_end(src, dest);
+        dest->type = TOKEN_ERROR;
+        set_token_str(dest, "invalid character");
+        return 0;
+    }
+}
+
 //--------------- token -----------------------------
 
 // return 1: ok
@@ -830,9 +1031,9 @@ static int consume_special_number(Source *src, Token *dest) {
 static int next_token_to(Source *src, Token *dest) {
     int curr;
 
-    clear_token(dest);
+    clear_token(dest, 1);
 
-    while(true) {
+    while(1) {
         curr = peek(src);
         switch(curr) {
             case EOS:
@@ -840,7 +1041,8 @@ static int next_token_to(Source *src, Token *dest) {
                 dest->type = TOKEN_EOS;
                 return 1;
             case '#':
-                return consume_comment(src, dest);
+                consume_comment(src, dest);
+                break;
             case '@':
                 return consume_section(src, dest);
             case '"': case '\'':
@@ -851,56 +1053,104 @@ static int next_token_to(Source *src, Token *dest) {
             case '6': case '7': case '8': case '9': 
                 return consume_normal_number(src, dest);
                 break;
-            '\r': '\n':
+            case '\r': case '\n':
                 consume_newline(src);
                 break;
-            case ':':
+            case '\t': case ' ':
+                next(src);
                 break;
-            case '.':
-                break;
-            case '+':
-                break;
-            case '-':
-                break;
+            case ':': case ';':
+            case '+': case '-':
+            case '/': case '%':
+            case '(': case ')':
+            case '{': case '}':
+            case '[': case ']':
+            case '|': case ',':
+                next(src);
+                set_token_begin(src, dest);
+                set_token_end(src, dest);
+                dest->type = curr;
+                return 1;
             case '*':
-                break;
-            case '/':
-                break;
-            case '%':
-                break;
-            case '(':
-                break;
-            case ')':
-                break;
-            case '{':
-                break;
-            case '}':
-                break;
-            case '[':
-                break;
-            case ']':
-                break;
+                next(src);
+                set_token_begin(src, dest);
+                curr = peek(src);
+                if (curr == '*') {
+                    next(src);
+                    set_token_end(src, dest);
+                    dest->type = TOKEN_EXPONENT;
+                } else {
+                    set_token_end(src, dest);
+                    dest->type = '*';
+                }
+                return 1;
             case '=':
-                break;
+                next(src);
+                set_token_begin(src, dest);
+                curr = peek(src);
+                if (curr == '=') {
+                    next(src);
+                    set_token_end(src, dest);
+                    dest->type = TOKEN_EQ;
+                } else {
+                    set_token_end(src, dest);
+                    dest->type = '=';
+                }
+                return 1;
             case '!':
-                break;
-            case '|':
-                break;
-            case ',':
-                break;
-            case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-            case 'g': case 'h': case 'i': case 'j': case 'k': case 'l':
-            case 'm': case 'n': case 'o': case 'p': case 'q': case 'r':
-            case 's': case 't': case 'u': case 'v': case 'w': case 'x':
-            case 'y': case 'z': 
-            case '_':
-                break;
-            case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-            case 'G': case 'H': case 'I': case 'J': case 'K': case 'L':
-            case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R':
-            case 'S': case 'T': case 'U': case 'V': case 'W': case 'X':
-            case 'Y': case 'Z': 
-                break;
+                next(src);
+                set_token_begin(src, dest);
+                curr = peek(src);
+                if (curr == '=') {
+                    next(src);
+                    set_token_end(src, dest);
+                    dest->type = TOKEN_NEQ;
+                } else {
+                    set_token_end(src, dest);
+                    dest->type = '!';
+                }
+                return 1;
+            case '>':
+                next(src);
+                set_token_begin(src, dest);
+                curr = peek(src);
+                if (curr == '=') {
+                    next(src);
+                    set_token_end(src, dest);
+                    dest->type = TOKEN_GE;
+                } else {
+                    set_token_end(src, dest);
+                    dest->type = '>';
+                }
+                return 1;
+            case '<':
+                next(src);
+                set_token_begin(src, dest);
+                curr = peek(src);
+                if (curr == '=') {
+                    next(src);
+                    set_token_end(src, dest);
+                    dest->type = TOKEN_LE;
+                } else {
+                    set_token_end(src, dest);
+                    dest->type = '<';
+                }
+                return 1;
+            case '.':
+                next(src);
+                set_token_begin(src, dest);
+                curr = peek(src);
+                if (curr == '.') {
+                    next(src);
+                    set_token_end(src, dest);
+                    dest->type = TOKEN_RANGE;
+                } else {
+                    set_token_end(src, dest);
+                    dest->type = '.';
+                }
+                return 1;
+            default:
+                return consume_default(src, dest);
         }
     }
 }
@@ -944,4 +1194,172 @@ Token *peek_token(void *data) {
     return &src->next_token;
 }
 
+// ------------------------- print token ---------------------------------
+static void pt(Token *t, char *buf, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s", t->beginrow, t->begincol, t->endrow, t->endcol, msg);
+}
+static void ptc(Token *t, char *buf) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %c", t->beginrow, t->begincol, t->endrow, t->endcol, t->type);
+}
+static void ptu(Token *t, char *buf) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: unknown%d)", t->beginrow, t->begincol, t->endrow, t->endcol, t->type);
+}
+static void pti(Token *t, char *buf, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s %ld", t->beginrow, t->begincol, t->endrow, t->endcol, msg, t->i);
+}
+static void ptf(Token *t, char *buf, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s %lf", t->beginrow, t->begincol, t->endrow, t->endcol, msg, t->f);
+}
+static void pts(Token *t, char *buf, int len, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s ", t->beginrow, t->begincol, t->endrow, t->endcol, msg);
+    if (token_strlen(t) + strlen(buf) < len)
+        strcat(buf, token_str(t));
+    else strcat(buf, "...");
+}
+static void ptcs(Token *t, char *buf, int len, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s %c ", t->beginrow, t->begincol, t->endrow, t->endcol, msg, t->i);
+    if (token_strlen(t) + strlen(buf) < len)
+        strcat(buf, token_str(t));
+    else strcat(buf, "...");
+}
+static void ptis(Token *t, char *buf, int len, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s %ld ", t->beginrow, t->begincol, t->endrow, t->endcol, msg, t->i);
+    if (token_strlen(t) + strlen(buf) < len)
+        strcat(buf, token_str(t));
+    else strcat(buf, "...");
+}
+
+static void ptfs(Token *t, char *buf, int len, const char *msg) {
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s %lf ", t->beginrow, t->begincol, t->endrow, t->endcol, msg, t->f);
+    if (token_strlen(t) + strlen(buf) < len)
+        strcat(buf, token_str(t));
+    else strcat(buf, "...");
+}
+
+void print_token(Token *t, char *buf, int len) {
+    int i = 0;
+    int type;
+    const char *str;
+    assert(t != NULL);
+    assert(buf != NULL);
+    assert(len > 256);
+    type = t->type;
+    if (type >= 32 && type <= 127) {
+        // printable type
+        ptc(t, buf);
+        return;
+    }
+    switch (t->type) {
+        case TOKEN_ERROR:
+            pts(t, buf, len, "error");
+            break;
+        case TOKEN_NTOKEN:
+            pt(t, buf, "no-token");
+            break;
+        case TOKEN_EOS:
+            pt(t, buf, "EOS");
+            break;
+        case TOKEN_SECTION:
+            ptcs(t, buf, len, "section");
+            break;
+        case TOKEN_IDENTIFIER:
+            pts(t, buf, len, "id");
+            break;
+        case TOKEN_INTEGER:
+            pti(t, buf, "integer");
+            break;
+        case TOKEN_FLOAT:
+            ptf(t, buf, "float");
+            break;
+        case TOKEN_STRING:
+            pts(t, buf, len, "string");
+            break;
+        case TOKEN_REGEX:
+            pts(t, buf, len, "regex");
+            break;
+        case TOKEN_IF:
+            pt(t, buf, "if");
+            break;
+        case TOKEN_THEN:
+            pt(t, buf, "then");
+            break;
+        case TOKEN_ELSE:
+            pt(t, buf, "else");
+            break;
+        case TOKEN_ELSEIF:
+            pt(t, buf, "elseif");
+            break;
+        case TOKEN_END:
+            pt(t, buf, "end");
+            break;
+        case TOKEN_FOR:
+            pt(t, buf, "for");
+            break;
+        case TOKEN_IN:
+            pt(t, buf, "in");
+            break;
+        case TOKEN_DO:
+            pt(t, buf, "do");
+            break;
+        case TOKEN_WHILE:
+            pt(t, buf, "while");
+            break;
+        case TOKEN_BREAK:
+            pt(t, buf, "break");
+            break;
+        case TOKEN_CONTINUE:
+            pt(t, buf, "continue");
+            break;
+        case TOKEN_RETURN:
+            pt(t, buf, "return");
+            break;
+        case TOKEN_AND:
+            pt(t, buf, "and");
+            break;
+        case TOKEN_OR:
+            pt(t, buf, "or");
+            break;
+        case TOKEN_CASE:
+            pt(t, buf, "case");
+            break;
+        case TOKEN_OF:
+            pt(t, buf, "of");
+            break;
+        case TOKEN_LP:
+            pt(t, buf, "lp");
+            break;
+        case TOKEN_FUN:
+            pt(t, buf, "fun");
+            break;
+        case TOKEN_TRUE:
+            pt(t, buf, "true");
+            break;
+        case TOKEN_FALSE:
+            pt(t, buf, "false");
+            break;
+        case TOKEN_NIL:
+            pt(t, buf, "nil");
+            break;
+        case TOKEN_EXPONENT:
+            pt(t, buf, "**");
+            break;
+        case TOKEN_EQ:
+            pt(t, buf, "==");
+            break;
+        case TOKEN_NEQ:
+            pt(t, buf, "!=");
+            break;
+        case TOKEN_GE:
+            pt(t, buf, ">=");
+            break;
+        case TOKEN_LE:
+            pt(t, buf, "<=");
+            break;
+        case TOKEN_RANGE:
+            pt(t, buf, "..");
+            break;
+        default:
+            ptu(t, buf);
+    }
+}
 

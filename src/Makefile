@@ -1,6 +1,10 @@
 SRC = $(wildcard *.c)
-main: $(SRC)
+OBJ = $(SRC:%.c=%.o)
+lp: $(OBJ)
 	gcc -o $@ $^
 
+$(OBJ):%.o:%.c
+	gcc -c -g -o $@ $<
+
 clean:
-	rm -f main
+	rm -f lp *.o
