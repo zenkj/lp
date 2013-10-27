@@ -31,6 +31,10 @@
 #define TOKEN_TRUE       528 //true
 #define TOKEN_FALSE      529 //false
 #define TOKEN_NIL        530 //nil
+#define TOKEN_TRY        531 //try
+#define TOKEN_CATCH      532 //catch
+#define TOKEN_AFTER      533 //after
+#define TOKEN_FINALLY    534 //finally
 
 #define TOKEN_EXPONENT   628 //**
 #define TOKEN_EQ         629 //==

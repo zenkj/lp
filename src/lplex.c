@@ -33,15 +33,18 @@ typedef struct {
     int type;
 } Reserve;
 static Reserve reserves[] = {
+    {"after", TOKEN_AFTER},
     {"and", TOKEN_AND},
     {"break", TOKEN_BREAK},
     {"case", TOKEN_CASE},
+    {"catch", TOKEN_CATCH},
     {"continue", TOKEN_CONTINUE},
     {"do", TOKEN_DO},
     {"else", TOKEN_ELSE},
     {"elseif", TOKEN_ELSEIF},
     {"end", TOKEN_END},
     {"false", TOKEN_FALSE},
+    {"finally", TOKEN_FINALLY},
     {"float", TOKEN_FLOAT},
     {"for", TOKEN_FOR},
     {"fun", TOKEN_FUN},
@@ -57,6 +60,7 @@ static Reserve reserves[] = {
     {"string", TOKEN_STRING},
     {"then", TOKEN_THEN},
     {"true", TOKEN_TRUE},
+    {"try", TOKEN_TRY},
     {"while", TOKEN_WHILE},
 };
 
@@ -220,12 +224,12 @@ static int append_char_to_token(Token *t, int ch) {
 
 //--------------- file source -----------------------------
 static int file_reader(void *data, char* buf, int len) {
-    int fd = (int)data;
+    int fd = (int)(long)data;
     ssize_t size = read(fd, buf, len);
     return (int)size;
 }
 static void file_closer(void *data) {
-    int fd = (int)data;
+    int fd = (int)(long)data;
     close(fd);
 }
 
@@ -270,7 +274,7 @@ void *file_source(const char *filepath) {
     src->ptr = 0;
     src->read = file_reader;
     src->close = file_closer;
-    src->data = (void*)fd;
+    src->data = (void*)(long)fd;
 
     clear_token(&src->curr_token, 0);
     clear_token(&src->next_token, 0);
@@ -1217,7 +1221,7 @@ static void pts(Token *t, char *buf, int len, const char *msg) {
     else strcat(buf, "...");
 }
 static void ptcs(Token *t, char *buf, int len, const char *msg) {
-    sprintf(buf, "%3d,%3d - %3d,%3d: %s %c ", t->beginrow, t->begincol, t->endrow, t->endcol, msg, t->i);
+    sprintf(buf, "%3d,%3d - %3d,%3d: %s %c ", t->beginrow, t->begincol, t->endrow, t->endcol, msg, (int)t->i);
     if (token_strlen(t) + strlen(buf) < len)
         strcat(buf, token_str(t));
     else strcat(buf, "...");
@@ -1336,6 +1340,18 @@ void print_token(Token *t, char *buf, int len) {
             break;
         case TOKEN_FALSE:
             pt(t, buf, "false");
+            break;
+        case TOKEN_TRY:
+            pt(t, buf, "try");
+            break;
+        case TOKEN_NIL:
+            pt(t, buf, "nil");
+            break;
+        case TOKEN_NIL:
+            pt(t, buf, "nil");
+            break;
+        case TOKEN_NIL:
+            pt(t, buf, "nil");
             break;
         case TOKEN_NIL:
             pt(t, buf, "nil");
