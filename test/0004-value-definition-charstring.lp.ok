@@ -22,8 +22,24 @@ who're you?
 this's a "good day", right?
 bye'''
 
-s11 = """hello,
+s12 = """hello,
 my baby, your age is $f0
 who're you? 
 this's a "good day", right?
 bye"""
+
+s13 = '''
+hello,
+my baby
+who're you? 
+this's a "good day", right?
+bye
+'''
+
+s14 = """
+hello,
+my baby, your age is $f0
+who're you? 
+this's a "good day", right?
+bye
+"""

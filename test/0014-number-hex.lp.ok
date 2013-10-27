@@ -1,0 +1,7 @@
+@= hex
+a1 = 0x123
+a2 = 0X123
+a3 = 0xabd
+a4 = 0xABD
+a5 = 0Xabd
+a6 = 0XABD
