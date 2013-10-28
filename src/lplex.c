@@ -437,12 +437,6 @@ static int peek(Source *src) {
 // 2. at the exit of these functions, the current character is
 //    the end of the current item.
 
-#define STRTYPE_TOEOL   0 // string till end of line
-#define STRTYPE_SINGLE  1 // single-line string quoted by '
-#define STRTYPE_DOUBLE  2 // single-line string quoted by "
-#define STRTYPE_SINGLEM 3 // multi-line string quoted by '''
-#define STRTYPE_DOUBLEM 4 // multi-line string quoted by """
-
 #define is_newline_char(ch) ((ch) == '\n' || (ch) == '\r')
 #define is_hex_char(ch) (((ch) >= '0' && (ch) <= '9') || ((ch) >= 'a' && (ch) <= 'f') || ((ch) >= 'A' && (ch) <= 'F'))
 #define is_oct_char(ch) ((ch) >= '0' && (ch) <= '7')
@@ -476,166 +470,208 @@ static int consume_newline(Source *src) {
     return 0;
 }
 
-// the string begin char(s)(' or " or ''' or """) are already consumed
-static int gather_str(Source *src, Token *dest, int type) {
+// consume string functions. if the token is provided, the string content
+// will be gathered. the string begin char(s)(' or " or ''' or """) are
+// already consumed.
+// 1. consume the string till end of the current line
+static int consume_str_till_eol(Source *src, Token *dest) {
     int curr;
-    switch (type) {
-        case STRTYPE_TOEOL:
-            while (1) {
+    while (1) {
+        curr = peek(src);
+        switch (curr) {
+            case EOS:
+                next(src);
+                return 1;
+            case '\n': case '\r':
+                consume_newline(src);
+                return 1;
+            case '\\':
+                next(src);
                 curr = peek(src);
-                switch (curr) {
-                    case EOS:
-                        next(src);
-                        return 1;
-                    case '\n': case '\r':
-                        consume_newline(src);
-                        return 1;
-                    case '\\':
-                        next(src);
-                        curr = peek(src);
-                        if (is_newline_char(curr)) {
-                            consume_newline(src);
-                            curr = '\n';
-                        } else curr = '\\';
-                        break;
-                    default:
-                        next(src);
-                        break;
+                if (is_newline_char(curr)) {
+                    consume_newline(src);
+                    curr = '\n';
+                } else curr = '\\';
+                break;
+            default:
+                next(src);
+                break;
+        }
+        if (dest != NULL) {
+            append_char_to_token(dest, curr);
+        }
+    }
+    return 0;
+}
+// consume the string started by '
+static int consume_str_till_single(Source *src, Token *dest) {
+    int curr;
+    while (1) {
+        curr = peek(src);
+        switch (curr) {
+            case EOS: case '\n': case '\r':
+                if (dest != NULL) {
+                    return error_token(dest, "no close \"'\"");
+                } else {
+                    return 0;
                 }
-                append_char_to_token(dest, curr);
-            }
-            break;
-
-        case STRTYPE_SINGLE:
-            while (1) {
+            case '\'':
+                next(src);
+                return 1;
+            case '\\':
+                next(src);
                 curr = peek(src);
-                switch (curr) {
-                    case EOS: case '\n': case '\r':
-                        return error_token(dest, "no close \"'\"");
-                    case '\'':
-                        next(src);
-                        return 1;
-                    case '\\':
-                        next(src);
-                        curr = peek(src);
-                        if (curr == '\'') {
-                            next(src);
-                        } else if (is_newline_char(curr)) {
-                            consume_newline(src);
-                            curr = '\n';
-                        } else {
-                            curr = '\\';
-                        }
-                        break;
-                    default:
-                        next(src);
-                        break;
+                if (curr == '\'') {
+                    next(src);
+                } else if (is_newline_char(curr)) {
+                    consume_newline(src);
+                    curr = '\n';
+                } else {
+                    curr = '\\';
                 }
-                append_char_to_token(dest, curr);
-            }
-            break;
-        case STRTYPE_DOUBLE:
-            while (1) {
-                curr = peek(src);
-                switch (curr) {
-                    case EOS: case '\n': case '\r':
-                        return error_token(dest, "no close '\"'");
-                    case '"':
-                        next(src);
-                        return 1;
-                    case '\\':
-                        next(src);
-                        curr = peek(src);
-                        switch (curr) {
-                            case EOS: curr = '\\'; break;
-                            case 'n': curr = '\n'; next(src); break;
-                            case 'r': curr = '\r'; next(src); break;
-                            case 't': curr = '\t'; next(src); break;
-                            case '\n': case '\r':
-                                consume_newline(src);
-                                curr = '\n';
-                                break;
-                            default: // \" and \\ is the same as normal chars
-                                next(src);
-                                break;
-                        }
-                        break;
-                    default:
-                        next(src);
-                        break;
-                }
-                append_char_to_token(dest, curr);
-            }
-            break;
-        case STRTYPE_SINGLEM:
-            while (1) {
-                curr = peek(src);
-                switch (curr) {
-                    case EOS:
-                        return error_token(dest, "no close \"'''\"");
-                    case '\'':
-                        next(src);
-                        curr = peek(src);
-                        if (curr == '\'') {
-                            next(src);
-                            curr = peek(src);
-                            if (curr == '\'') {
-                                next(src);
-                                return 1;
-                            } else {
-                                append_char_to_token(dest, '\'');
-                                curr = '\'';
-                            }
-                        } else curr = '\'';
-                        break;
-                    case '\r': case '\n':
-                        consume_newline(src);
-                        curr = '\n';
-                        break;
-                    default:
-                        next(src);
-                        break;
-                }
-                append_char_to_token(dest, curr);
-            }
-            break;
-        case STRTYPE_DOUBLEM:
-            while (1) {
-                curr = peek(src);
-                switch (curr) {
-                    case EOS:
-                        return error_token(dest, "no close '\"\"\"'");
-                    case '"':
-                        next(src);
-                        curr = peek(src);
-                        if (curr == '"') {
-                            next(src);
-                            curr = peek(src);
-                            if (curr == '"') {
-                                next(src);
-                                return 1;
-                            } else {
-                                append_char_to_token(dest, '"');
-                                curr = '"';
-                            }
-                        } else curr = '"';
-                        break;
-                    case '\r': case '\n':
-                        consume_newline(src);
-                        curr = '\n';
-                        break;
-                    default:
-                        next(src);
-                        break;
-                }
-                append_char_to_token(dest, curr);
-            }
-            break;
-        default:
-            printf("invalid string type\n");
+                break;
+            default:
+                next(src);
+                break;
+        }
+        if (dest != NULL) {
+            append_char_to_token(dest, curr);
+        }
     }
 
-    // something must be wrong, because all success handling have already returned
+    return 0;
+}
+// consume the string started by "
+static int consume_str_till_double(Source *src, Token *dest) {
+    int curr;
+    while (1) {
+        curr = peek(src);
+        switch (curr) {
+            case EOS: case '\n': case '\r':
+                if (dest != NULL) {
+                    return error_token(dest, "no close '\"'");
+                } else {
+                    return 0;
+                }
+            case '"':
+                next(src);
+                return 1;
+            case '\\':
+                next(src);
+                curr = peek(src);
+                switch (curr) {
+                    case EOS: curr = '\\'; break;
+                    case 'n': curr = '\n'; next(src); break;
+                    case 'r': curr = '\r'; next(src); break;
+                    case 't': curr = '\t'; next(src); break;
+                    case '\n': case '\r':
+                        consume_newline(src);
+                        curr = '\n';
+                        break;
+                    default: // \" and \\ is the same as normal chars
+                        next(src);
+                        break;
+                }
+                break;
+            default:
+                next(src);
+                break;
+        }
+        if (dest != NULL) {
+            append_char_to_token(dest, curr);
+        }
+    }
+
+    return 0;
+}
+
+// consume the multi-line string started by '''
+static int consume_str_till_singlem(Source *src, Token *dest) {
+    int curr;
+    while (1) {
+        curr = peek(src);
+        switch (curr) {
+            case EOS:
+                if (dest != NULL) {
+                    return error_token(dest, "no close \"'''\"");
+                } else {
+                    return 0;
+                }
+            case '\'':
+                next(src);
+                curr = peek(src);
+                if (curr == '\'') {
+                    next(src);
+                    curr = peek(src);
+                    if (curr == '\'') {
+                        next(src);
+                        return 1;
+                    } else {
+                        if (dest != NULL) {
+                            append_char_to_token(dest, '\'');
+                        }
+                        curr = '\'';
+                    }
+                } else curr = '\'';
+                break;
+            case '\r': case '\n':
+                consume_newline(src);
+                curr = '\n';
+                break;
+            default:
+                next(src);
+                break;
+        }
+        if (dest != NULL) {
+            append_char_to_token(dest, curr);
+        }
+    }
+
+    return 0;
+}
+
+// consume the multi-line string started by """
+static int consume_str_till_doublem(Source *src, Token *dest) {
+    int curr;
+    while (1) {
+        curr = peek(src);
+        switch (curr) {
+            case EOS:
+                if (dest != NULL) {
+                    return error_token(dest, "no close '\"\"\"'");
+                } else {
+                    return 0;
+                }
+            case '"':
+                next(src);
+                curr = peek(src);
+                if (curr == '"') {
+                    next(src);
+                    curr = peek(src);
+                    if (curr == '"') {
+                        next(src);
+                        return 1;
+                    } else {
+                        if (dest != NULL) {
+                            append_char_to_token(dest, '"');
+                        }
+                        curr = '"';
+                    }
+                } else curr = '"';
+                break;
+            case '\r': case '\n':
+                consume_newline(src);
+                curr = '\n';
+                break;
+            default:
+                next(src);
+                break;
+        }
+        if (dest != NULL) {
+            append_char_to_token(dest, curr);
+        }
+    }
+
     return 0;
 }
 
@@ -658,7 +694,7 @@ static int consume_string(Source *src, Token *dest) {
                     n = peek(src);
                     if (n == '\'') {
                         next(src);
-                        result = gather_str(src, dest, STRTYPE_SINGLEM);
+                        result = consume_str_till_singlem(src, dest);
                         set_token_end(src, dest);
                         return result;
                     } else {
@@ -668,7 +704,7 @@ static int consume_string(Source *src, Token *dest) {
                     }
                     break;
                 default:
-                    result = gather_str(src, dest, STRTYPE_SINGLE);
+                    result = consume_str_till_single(src, dest);
                     set_token_end(src, dest);
                     return result;
             }
@@ -684,7 +720,7 @@ static int consume_string(Source *src, Token *dest) {
                     n = peek(src);
                     if (n == '"') {
                         next(src);
-                        result = gather_str(src, dest, STRTYPE_DOUBLEM);
+                        result = consume_str_till_doublem(src, dest);
                         set_token_end(src, dest);
                         return result;
                     } else {
@@ -694,7 +730,7 @@ static int consume_string(Source *src, Token *dest) {
                     }
                     break;
                 default:
-                    result = gather_str(src, dest, STRTYPE_DOUBLE);
+                    result = consume_str_till_double(src, dest);
                     set_token_end(src, dest);
                     return result;
             }
@@ -707,32 +743,36 @@ static int consume_string(Source *src, Token *dest) {
     return 0;
 }
 
+// support single line comment(#xxx) and multi-line comment(#"""xxx""" or #'''xxx''')
 static int consume_comment(Source *src, Token *dest) {
     int curr = next(src);
     assert(curr == '#');
 
-    while (1) {
+    curr = peek(src);
+    if (curr == '\'') {
+        next(curr);
         curr = peek(src);
-        switch (curr) {
-            case EOS:
-                next(src);
-                return 1;
-            case '\n': case '\r':
-                consume_newline(src);
-                return 1;
-            case '\\':
-                next(src);
-                curr = peek(src);
-                if (is_newline_char(curr)) {
-                    consume_newline(src);
-                }
-                break;
-            default:
-                next(src);
-                break;
+        if (curr == '\'') {
+            next(curr);
+            curr = peek(src);
+            if (curr == '\'') {
+                next(curr);
+                return consume_str_till_singlem(src, NULL);
+            }
+        }
+    } else if (curr == '"') {
+        next(curr);
+        curr = peek(src);
+        if (curr == '"') {
+            next(curr);
+            curr = peek(src);
+            if (curr == '"') {
+                next(curr);
+                return consume_str_till_doublem(src, NULL)
+            }
         }
     }
-    return 0;
+    return consume_str_till_eol(src, NULL);
 }
 
 static int consume_section(Source *src, Token *dest) {
@@ -749,7 +789,7 @@ static int consume_section(Source *src, Token *dest) {
             next(src);
             dest->type = TOKEN_SECTION;
             dest->i = curr;
-            result = gather_str(src, dest, STRTYPE_TOEOL);
+            result = consume_str_till_eol(src, dest);
             set_token_end(src, dest);
             return result;
         default:
@@ -766,14 +806,12 @@ static int str2int(Token *dest, int base) {
     const char *beginptr = token_str(dest);
     char *endptr;
     if (token_strlen(dest) == 0) {
-        dest->type = TOKEN_ERROR;
-        set_token_str(dest, "malformed number");
-        return 0;
+        return error_token(dest, "malformed number");
     }
     errno = 0;
     l = strtol(beginptr, &endptr, base);
 
-    if ((errno != 0) || endptr == beginptr || *endptr != '\0') {
+    if ((errno != 0) || *endptr != '\0') {
         return error_token(dest, "invalid number format");
     }
 
@@ -791,7 +829,7 @@ static int str2float(Token *dest) {
     errno = 0;
     l = strtod(beginptr, &endptr);
 
-    if ((errno != 0) || endptr == beginptr || *endptr != '\0') {
+    if ((errno != 0) || *endptr != '\0') {
         return error_token(dest, "invalid number format");
     }
 
@@ -1153,6 +1191,19 @@ static int next_token_to(Source *src, Token *dest) {
                     dest->type = '.';
                 }
                 return 1;
+            case 'r':
+                next(src);
+                curr = peek(src);
+                if (curr == '"') {
+                    // regular expression r"xxx"
+                    // TODO
+                } else if (curr == '\'') {
+                    // regular expression r'xxx'
+                    // TODO
+                } else {
+                    // normal identifier
+                    // TODO
+                }
             default:
                 return consume_default(src, dest);
         }

@@ -43,6 +43,9 @@
 #define TOKEN_LE         632 //<=
 #define TOKEN_RANGE      633 //..
 
+#define STRTYPE_SINGLE  1 // string quoted by '
+#define STRTYPE_DOUBLE  2 // string quoted by "
+
 #define TOKEN_BUFMAX     512
 typedef struct Token {
     int type;
