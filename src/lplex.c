@@ -127,6 +127,10 @@ static void set_token_end(Source *src, Token *t) {
     t->endrow = src->row;
 }
 
+static void set_token_type(Token *t, int type) {
+    t->type = type;
+}
+
 static int set_token_str(Token *t, const char *str) {
     int len = strnlen(str, SRCMAX);
     if (len == SRCMAX) {
@@ -680,7 +684,7 @@ static int consume_string(Source *src, Token *dest) {
     int n;
     int result;
 
-    dest->type = TOKEN_STRING;
+    set_token_type(dest, TOKEN_STRING);
     set_token_begin(src, dest);
     switch (curr) {
         case '\'':
@@ -736,7 +740,7 @@ static int consume_string(Source *src, Token *dest) {
             }
             break;
         default:
-            dest->type = TOKEN_ERROR;
+            set_token_type(dest, TOKEN_ERROR);
             return 0;
     }
 
@@ -787,7 +791,7 @@ static int consume_section(Source *src, Token *dest) {
         case '1': case '2': case '3': case '4': case '5':
         case '6': case '7': case '8': case '9':
             next(src);
-            dest->type = TOKEN_SECTION;
+            set_token_type(dest, TOKEN_SECTION);
             dest->i = curr;
             result = consume_str_till_eol(src, dest);
             set_token_end(src, dest);
@@ -937,11 +941,11 @@ static int gather_dec(Source *src, Token *dest) {
 
     if (hasptr || hasexp) {
         //float
-        dest->type = TOKEN_FLOAT;
+        set_token_type(dest, TOKEN_FLOAT);
         return str2float(dest);
     } else {
         // integer
-        dest->type = TOKEN_INTEGER;
+        set_token_type(dest, TOKEN_INTEGER);
         return str2int(dest, 10);
     }
 }
@@ -950,7 +954,7 @@ static int consume_normal_number(Source *src, Token *dest) {
     int curr = next(src);
     int result;
     assert(is_dec_char(curr) && curr != '0');
-    dest->type = TOKEN_INTEGER;
+    set_token_type(dest, TOKEN_INTEGER);
     set_token_begin(src, dest);
 
     append_char_to_token(dest, curr);
@@ -964,7 +968,7 @@ static int consume_special_number(Source *src, Token *dest) {
     int result;
     assert(curr == '0');
 
-    dest->type = TOKEN_INTEGER;
+    set_token_type(dest, TOKEN_INTEGER);
     set_token_begin(src, dest);
     
     curr = peek(src);
@@ -994,7 +998,7 @@ static int consume_special_number(Source *src, Token *dest) {
             if (is_id_first_char(curr) || curr == '8' || curr == '9') {
                 next(src);
                 set_token_str(dest, "invalid number format");
-                dest->type = TOKEN_ERROR;
+                set_token_type(dest, TOKEN_ERROR);
                 set_token_end(src, dest);
                 return 0;
             } else {
@@ -1016,7 +1020,7 @@ static int check_reserve(Token *t) {
         m = (begin + end) / 2;
         res = strcmp(reserves[m].str, str);
         if (res == 0) {
-            t->type = reserves[m].type;
+            set_token_type(t, reserves[m].type);
             return 1;
         } else if (res > 0) {
             end = m - 1;
@@ -1027,14 +1031,14 @@ static int check_reserve(Token *t) {
     return 1;
 }
 
-static int consume_id(Source *src, Token *dest) {
-    int curr = next(src);
+static int consume_id_with_first_char(Source *src, Token *dest, int firstchar) {
+    int curr = firstchar;
     int result;
 
     assert(is_id_first_char(curr));
 
     set_token_begin(src, dest);
-    dest->type = TOKEN_IDENTIFIER;
+    set_token_type(dest, TOKEN_IDENTIFIER);
     append_char_to_token(dest, curr);
 
     while (1) {
@@ -1049,6 +1053,11 @@ static int consume_id(Source *src, Token *dest) {
     set_token_end(src, dest);
 
     return check_reserve(dest);
+}
+
+static int consume_id(Source *src, Token *dest) {
+    int curr = next(src);
+    return consume_id_with_first_char(src, dest, curr);
 }
 
 static int consume_default(Source *src, Token *dest) {
@@ -1191,19 +1200,33 @@ static int next_token_to(Source *src, Token *dest) {
                     dest->type = '.';
                 }
                 return 1;
-            case 'r':
+            case 'r': {
+                int result;
                 next(src);
+                set_token_begin(src, dest);
                 curr = peek(src);
                 if (curr == '"') {
                     // regular expression r"xxx"
-                    // TODO
+                    next(src);
+                    set_token_type(dest, TOKEN_REGEX);
+                    dest->i = STRTYPE_DOUBLE;
+                    result = consume_str_till_double(src, dest);
+                    set_token_end(src, dest);
+                    return result;
                 } else if (curr == '\'') {
                     // regular expression r'xxx'
-                    // TODO
+                    next(src);
+                    set_token_type(dest, TOKEN_REGEX);
+                    dest->i = STRTYPE_SINGLE;
+                    result = consume_str_till_single(src, dest);
+                    set_token_end(src, dest);
+                    return result;
                 } else {
                     // normal identifier
-                    // TODO
+                    return consume_id_with_first_char(src, dest, 'r');
                 }
+                break;
+            }
             default:
                 return consume_default(src, dest);
         }
