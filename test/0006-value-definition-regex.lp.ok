@@ -1,6 +1,6 @@
 @= regex value definition
 # regex will be conflict with the div operator, consider not support
-#r0 = /^.*$/
-#r1 = /^\/abc\/def\/.*$/
-#r2 = r'^/abc/def/.*$/' # support or not???
-#r4 = /abc.*$s0\s*/
+r0 = r"^.*$"
+r1 = r'^/abc/def/.*$'
+r2 = r'^/abc/def/.*$/' # support or not???
+r4 = r"abc.*$s0 s*"

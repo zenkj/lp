@@ -754,25 +754,25 @@ static int consume_comment(Source *src, Token *dest) {
 
     curr = peek(src);
     if (curr == '\'') {
-        next(curr);
+        next(src);
         curr = peek(src);
         if (curr == '\'') {
-            next(curr);
+            next(src);
             curr = peek(src);
             if (curr == '\'') {
-                next(curr);
+                next(src);
                 return consume_str_till_singlem(src, NULL);
             }
         }
     } else if (curr == '"') {
-        next(curr);
+        next(src);
         curr = peek(src);
         if (curr == '"') {
-            next(curr);
+            next(src);
             curr = peek(src);
             if (curr == '"') {
-                next(curr);
-                return consume_str_till_doublem(src, NULL)
+                next(src);
+                return consume_str_till_doublem(src, NULL);
             }
         }
     }
@@ -1353,7 +1353,7 @@ void print_token(Token *t, char *buf, int len) {
             pts(t, buf, len, "string");
             break;
         case TOKEN_REGEX:
-            pts(t, buf, len, "regex");
+            ptis(t, buf, len, "regex");
             break;
         case TOKEN_IF:
             pt(t, buf, "if");
@@ -1418,17 +1418,14 @@ void print_token(Token *t, char *buf, int len) {
         case TOKEN_TRY:
             pt(t, buf, "try");
             break;
-        case TOKEN_NIL:
-            pt(t, buf, "nil");
+        case TOKEN_CATCH:
+            pt(t, buf, "catch");
             break;
-        case TOKEN_NIL:
-            pt(t, buf, "nil");
+        case TOKEN_AFTER:
+            pt(t, buf, "after");
             break;
-        case TOKEN_NIL:
-            pt(t, buf, "nil");
-            break;
-        case TOKEN_NIL:
-            pt(t, buf, "nil");
+        case TOKEN_FINALLY:
+            pt(t, buf, "finally");
             break;
         case TOKEN_EXPONENT:
             pt(t, buf, "**");
