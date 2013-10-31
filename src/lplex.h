@@ -8,8 +8,8 @@
 #define TOKEN_IDENTIFIER 505
 #define TOKEN_INTEGER    506
 #define TOKEN_FLOAT      507
-#define TOKEN_STRING     508
-#define TOKEN_REGEX      509
+#define TOKEN_STRING     508 //string or 'xxx' or "xxx" or '''xxx''' or """xxx"""
+#define TOKEN_REGEX      509 //r'xxx' or r"xxx"
 #define TOKEN_IF         510 //if
 #define TOKEN_THEN       511 //then
 #define TOKEN_ELSE       512 //else

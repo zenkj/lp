@@ -1,0 +1,11 @@
+@= identifier
+a0
+a.b.c.d
+a.b.c.D
+_
+.a.b.c.d
+_abc
+#def.fun.if
+_abc._def
+a..b
+a.b.c..d.e.f
