@@ -6,5 +6,8 @@ lp: $(OBJ)
 $(OBJ):%.o:%.c
 	gcc -c -g -o $@ $<
 
+sp: strpool.c strpool.h
+	gcc -g -o $@ $<
+
 clean:
 	rm -f lp *.o

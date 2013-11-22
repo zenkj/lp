@@ -1,0 +1,212 @@
+@1 正式定义
+@2 通用定义
+type-id = q-type-id | nq-type-id | "bool" | "int" | "float" | "string" | "lp" 
+value-id = q-value-id | nq-value-id
+nq-type-id = capitalized-id
+nq-value-id = non-capitalized-id
+q-type-id = {nq-value-id} nq-type-id
+
+@2 最顶层module的定义
+module = root-section {section}
+root-section = [root-section-header] [section-doc] {statement}
+section = section-header [section-doc] {statement}
+root-section-header = "@0 root-section-name\n"
+section-header = "@(1-9,>,<,=) section-name\n"
+statement = typedef | fundef | vardef | if | while | case | for | import
+section-doc = long-string
+
+@2 语句定义
+@3 类型定义
+typedef = structdef | binarydef
+structdef = ["export" | "local"] "struct" nq-type-id "{" [vardef-or-struct-list] "}" ";"
+binarydef = ["export" | "local"] "binary" nq-type-id "{" [binvardef-or-binary-list] "}" ";"
+
+vardef-or-struct-list = vardef-or-struct {"," vardef-or-struct}
+binvardef-or-binary-list = binvardef-or-binary {"," binvardef-or-binary}
+vardef-or-struct = vardef | type-id
+binvardef-or-binary = binvardef | type-id
+vardef = var-id [type] ["=" expr]
+binvardef = binvar-id [":" bintype] ["=" expr]
+
+type-id = capitalized-id
+var-id = non-capitalized-id
+binvar-id = non-capitalized-id
+bintype = [">" | "<"] (bin-count | "utf8" | "utf16" | "utf32")
+bit-count = positive-integer
+
+
+@3 函数定义
+fundef = ["export" | "local"] "fun" fun-id "(" [vardef-list] ")" [type] ["of" type] {statement} "end" ";"
+fun-id = non-capitalized-id
+type = type-id | full-qualified-type-id
+
+@3 变量定义
+vardef = ["export" | "local"] var-id [type] "=" expr ";"
+
+@3 if
+@3 while
+@3 case
+@3 for
+@3 import
+import q-var-id ["as" nq-var-id]
+
+@2 表达式定义
+expr = funcall | lp | group | newtype | arithmatics | bool | tuple | bintuple | var
+funcall = fun-id "(" [incarnation] ")"
+incarnation = expr {"," expr} | nq-var-id "=" expr {"," var-id "=" expr}
+nq-var-id = non-qualified-var-id
+lp = "lp" {statement} "end"
+group = "(" expr ")"
+newtype = type-id "{" [incarnation] "}" | var-id "{" [incarnation] "}"
+arithmatics = add | sub | mul | div | exponent
+add = expression "+" expression"
+sub = expression "-" expression"
+mul = expression "*" expression"
+div = expression "/" expression"
+exponent = expression "**" expression"
+bool = eq | ne | ge | le | lt | gt | and | or
+eq = expression "==" expression
+ne = expression "!=" expression
+ge = expression ">=" expression
+le = expression "<=" expression
+lt = expression "<"  expression
+gt = expression ">"  expression
+and = expression "||" expression #tbd
+or = expression "&&" expression #tbd
+tuple = "{" [tuple-member-list] "}"
+tuple-member-list = expr [type] {"," expr [type]}
+bintuple = "{" [bintuple-member-list] "}"
+bintuple-member-list = expr [":" bintype] {"," expr [":" bintype]}
+
+
+
+@1 草稿场地
+// type
+int
+float
+string
+bool
+binary
+regex
+struct
+list
+tuple
+fun
+lp
+nil/undefined #which one???
+
+
+// definition
+function = "fun" [id] "(" param-list ")" [type] ["of" id type] {statement} "end"
+
+// expression
+add = expression "+" expression"
+sub = expression "-" expression"
+mul = expression "*" expression"
+div = expression "/" expression"
+exponent = expression "**" expression"
+eq = expression "==" expression
+ne = expression "!=" expression
+ge = expression ">=" expression
+le = expression "<=" expression
+lt = expression "<"  expression
+gt = expression ">"  expression
+and = expression "||" expression
+or = expression "&&" expression
+group = "(" expression ")"
+
+// statement
+if  = "if" assign-or-boolean {assign-or-boolean} "then" {statement} { "elseif" boolean "then" {statement} } ["else" {statement}] "end"
+
+for = "for" in-or-assign-or-boolean {in-or-assign-or-boolean} "do" {statement} "end"
+
+while = "while" in-or-assign-or-boolean {in-or-assgin-or-boolean} "do" {statement} "end"
+
+case = "case" expression "of" candidate [when boolean] ":" {statement} {candidate ":" {statement}} "end"
+
+lp = "lp" {statement} "end"
+
+assign = id-list "=" value-list
+
+id-list = id {"," id}
+
+value-list = expression {"," expression}
+
+
+@1 试验场地
+
+b = {12:4, 24:4, 36:16, 24:2}
+s = {12, 24, 36, 24}
+b bin = {12, 24, 36, 24}
+b = bin{a=12,b=24,c=16,d=33}{}
+
+bin {
+    a: 12,
+    b: 2,
+    c: 64 = 14.0,
+    d: utf8,
+    e: utf16,
+    f: utf32,
+    a1: >12, # big endian
+    a2: <12, # little endian
+    b1: 2,
+    c1: <64,
+    e1: >utf16,
+    f1: <utf32,
+    g
+}
+
+case b of
+ _ bin{a:12=4, b}
+ {4:12, b}
+
+
+Bin = bin {
+a,b,c=0
+}
+
+b = Bin{a=10, b=1}
+b = bin{a,b,c}{1,2,3}
+
+S1 = struct { a,b,c }
+
+a S1 = {1,2,3}
+a = S1{a=1,b=2,c=3}
+
+a = S1{1,2,3}
+a = struct{a,b,c}{1,2,3}
+a = struct{a=1,b=2,c=3}{}
+a = S1{b=2}
+
+bin = {1,2,3} #wrong
+
+Fun = fun() xxx end
+
+bin = Bin[a=10, b=1, c=24]
+
+bin1 = bin[b=0]
+
+Bin = {a float = 1, b = '', c = 1.2}
+
+Bin1 = {d Bin, Bin}
+
+b = Bin1{d=Bin{b='123'}}
+
+[a | b]
+[a,b,c|d]
+
+b.d.a
+bin.a
+
+
+
+regex = r"hello.*$"
+
+case abc of
+xxx: 123 ddd: aaa end
+match  abc
+with xxx:
+with ddd:
+with xxx:
+end
+

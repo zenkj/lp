@@ -205,34 +205,37 @@ typedef struct {
 } Reserve;
 
 static Reserve reserves[] = {
-    {"after", TOKEN_AFTER},
-    {"and", TOKEN_AND},
-    {"break", TOKEN_BREAK},
-    {"case", TOKEN_CASE},
-    {"catch", TOKEN_CATCH},
-    {"continue", TOKEN_CONTINUE},
-    {"do", TOKEN_DO},
-    {"else", TOKEN_ELSE},
-    {"elseif", TOKEN_ELSEIF},
-    {"end", TOKEN_END},
-    {"false", TOKEN_FALSE},
-    {"finally", TOKEN_FINALLY},
-    {"float", TOKEN_FLOAT},
-    {"for", TOKEN_FOR},
-    {"fun", TOKEN_FUN},
-    {"if", TOKEN_IF},
-    {"in", TOKEN_IN},
-    {"int", TOKEN_INTEGER},
-    {"lp", TOKEN_LP},
-    {"nil", TOKEN_NIL},
-    {"of", TOKEN_OF},
-    {"or", TOKEN_OR},
-    {"return", TOKEN_RETURN},
-    {"string", TOKEN_STRING},
-    {"then", TOKEN_THEN},
-    {"true", TOKEN_TRUE},
-    {"try", TOKEN_TRY},
-    {"while", TOKEN_WHILE},
+    {"after", TOKEN_KW_AFTER},
+    {"and", TOKEN_KW_AND},
+    {"break", TOKEN_KW_BREAK},
+    {"case", TOKEN_KW_CASE},
+    {"catch", TOKEN_KW_CATCH},
+    {"continue", TOKEN_KW_CONTINUE},
+    {"do", TOKEN_KW_DO},
+    {"else", TOKEN_KW_ELSE},
+    {"elseif", TOKEN_KW_ELSEIF},
+    {"end", TOKEN_KW_END},
+    {"export", TOKEN_KW_EXPORT},
+    {"false", TOKEN_KW_FALSE},
+    {"finally", TOKEN_KW_FINALLY},
+    {"float", TOKEN_KW_FLOAT},
+    {"for", TOKEN_KW_FOR},
+    {"fun", TOKEN_KW_FUN},
+    {"if", TOKEN_KW_IF},
+    {"import", TOKEN_KW_IMPORT},
+    {"in", TOKEN_KW_IN},
+    {"int", TOKEN_KW_INTEGER},
+    {"local", TOKEN_KW_LOCAL},
+    {"lp", TOKEN_KW_LP},
+    {"nil", TOKEN_KW_NIL},
+    {"of", TOKEN_KW_OF},
+    {"or", TOKEN_KW_OR},
+    {"return", TOKEN_KW_RETURN},
+    {"string", TOKEN_KW_STRING},
+    {"then", TOKEN_KW_THEN},
+    {"true", TOKEN_KW_TRUE},
+    {"try", TOKEN_KW_TRY},
+    {"while", TOKEN_KW_WHILE},
 };
 
 static int search_reserve(const char* str) {
@@ -1124,11 +1127,11 @@ static int try_add_semi(Source *src, Token *dest, int ttype) {
         case TOKEN_FLOAT:
         case TOKEN_STRING:
         case TOKEN_REGEX:
-        case TOKEN_END:
-        case TOKEN_BREAK:
+        case TOKEN_KW_END:
+        case TOKEN_KW_BREAK:
         case TOKEN_CONTINUE:
         case TOKEN_RETURN:
-        case TOKEN_TRUE:
+        case TOKEN_KW_TRUE:
         case TOKEN_FALSE:
         case TOKEN_NIL:
         case ')':
@@ -1514,10 +1517,10 @@ void print_token(Token *t, char *buf, int len) {
         case TOKEN_REGEX:
             ptis(t, buf, len, "regex");
             break;
-        case TOKEN_IF:
+        case TOKEN_KW_IF:
             pt(t, buf, "if");
             break;
-        case TOKEN_THEN:
+        case TOKEN_KW_THEN:
             pt(t, buf, "then");
             break;
         case TOKEN_ELSE:
@@ -1526,7 +1529,7 @@ void print_token(Token *t, char *buf, int len) {
         case TOKEN_ELSEIF:
             pt(t, buf, "elseif");
             break;
-        case TOKEN_END:
+        case TOKEN_KW_END:
             pt(t, buf, "end");
             break;
         case TOKEN_FOR:
@@ -1538,10 +1541,10 @@ void print_token(Token *t, char *buf, int len) {
         case TOKEN_DO:
             pt(t, buf, "do");
             break;
-        case TOKEN_WHILE:
+        case TOKEN_KW_WHILE:
             pt(t, buf, "while");
             break;
-        case TOKEN_BREAK:
+        case TOKEN_KW_BREAK:
             pt(t, buf, "break");
             break;
         case TOKEN_CONTINUE:
@@ -1568,13 +1571,13 @@ void print_token(Token *t, char *buf, int len) {
         case TOKEN_FUN:
             pt(t, buf, "fun");
             break;
-        case TOKEN_TRUE:
+        case TOKEN_KW_TRUE:
             pt(t, buf, "true");
             break;
         case TOKEN_FALSE:
             pt(t, buf, "false");
             break;
-        case TOKEN_TRY:
+        case TOKEN_KW_TRY:
             pt(t, buf, "try");
             break;
         case TOKEN_CATCH:
@@ -1585,6 +1588,15 @@ void print_token(Token *t, char *buf, int len) {
             break;
         case TOKEN_FINALLY:
             pt(t, buf, "finally");
+            break;
+        case TOKEN_EXPORT:
+            pt(t, buf, "export");
+            break;
+        case TOKEN_IMPORT:
+            pt(t, buf, "import");
+            break;
+        case TOKEN_LOCAL:
+            pt(t, buf, "local");
             break;
         case TOKEN_EXPONENT:
             pt(t, buf, "**");
