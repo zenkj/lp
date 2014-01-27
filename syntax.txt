@@ -1,12 +1,12 @@
-@1 ÕýÊ½¶¨Òå
-@2 Í¨ÓÃ¶¨Òå
+@1 æ­£å¼å®šä¹‰
+@2 é€šç”¨å®šä¹‰
 type-id = q-type-id | nq-type-id | "bool" | "int" | "float" | "string" | "lp" 
 value-id = q-value-id | nq-value-id
 nq-type-id = capitalized-id
 nq-value-id = non-capitalized-id
 q-type-id = {nq-value-id} nq-type-id
 
-@2 ×î¶¥²ãmoduleµÄ¶¨Òå
+@2 æœ€é¡¶å±‚moduleçš„å®šä¹‰
 module = root-section {section}
 root-section = [root-section-header] [section-doc] {statement}
 section = section-header [section-doc] {statement}
@@ -15,8 +15,8 @@ section-header = "@(1-9,>,<,=) section-name\n"
 statement = typedef | fundef | vardef | if | while | case | for | import
 section-doc = long-string
 
-@2 Óï¾ä¶¨Òå
-@3 ÀàÐÍ¶¨Òå
+@2 è¯­å¥å®šä¹‰
+@3 ç±»åž‹å®šä¹‰
 typedef = structdef | binarydef
 structdef = ["export" | "local"] "struct" nq-type-id "{" [vardef-or-struct-list] "}" ";"
 binarydef = ["export" | "local"] "binary" nq-type-id "{" [binvardef-or-binary-list] "}" ";"
@@ -35,12 +35,12 @@ bintype = [">" | "<"] (bin-count | "utf8" | "utf16" | "utf32")
 bit-count = positive-integer
 
 
-@3 º¯Êý¶¨Òå
+@3 å‡½æ•°å®šä¹‰
 fundef = ["export" | "local"] "fun" fun-id "(" [vardef-list] ")" [type] ["of" type] {statement} "end" ";"
 fun-id = non-capitalized-id
 type = type-id | full-qualified-type-id
 
-@3 ±äÁ¿¶¨Òå
+@3 å˜é‡å®šä¹‰
 vardef = ["export" | "local"] var-id [type] "=" expr ";"
 
 @3 if
@@ -50,7 +50,7 @@ vardef = ["export" | "local"] var-id [type] "=" expr ";"
 @3 import
 import q-var-id ["as" nq-var-id]
 
-@2 ±í´ïÊ½¶¨Òå
+@2 è¡¨è¾¾å¼å®šä¹‰
 expr = funcall | lp | group | newtype | arithmatics | bool | tuple | bintuple | var
 funcall = fun-id "(" [incarnation] ")"
 incarnation = expr {"," expr} | nq-var-id "=" expr {"," var-id "=" expr}
@@ -80,7 +80,7 @@ bintuple-member-list = expr [":" bintype] {"," expr [":" bintype]}
 
 
 
-@1 ²Ý¸å³¡µØ
+@1 è‰ç¨¿åœºåœ°
 // type
 int
 float
@@ -133,7 +133,7 @@ id-list = id {"," id}
 value-list = expression {"," expression}
 
 
-@1 ÊÔÑé³¡µØ
+@1 è¯•éªŒåœºåœ°
 
 b = {12:4, 24:4, 36:16, 24:2}
 s = {12, 24, 36, 24}
