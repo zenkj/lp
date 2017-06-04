@@ -2,6 +2,7 @@
     根据实际经验，很多时候，erlang代码要比其他语言（包括python）简洁，主要原因有两点：
     erlang的模式匹配，尤其是函数头中的模式匹配，几乎干掉了所有命令式语言中的if语句和
     大部分赋值语句；
+    erlang虚拟机本身的函数匹配能力，让函数头模式匹配干掉了绝大多数嵌套判断，全复杂度大大降低；
     erlang强大的列表表达能力和foreach/map/foldl/foldr/filter等高阶列表处理函数，让下标完全不需要了
 -1. erlang吐槽
     erlang很让人困惑的一个问题是，apply(M,F,A)和start_link中往init传的
